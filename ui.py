@@ -1,37 +1,26 @@
 import sys
 import io
-import base64
 from dataclasses import dataclass
 from typing import Dict, List
-
 import requests
-
-# Import PyQt5 modules for modern UI
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
-    QApplication,
-    QComboBox,
-    QHBoxLayout,
-    QLabel,
-    QListWidget,
-    QMainWindow,
-    QMessageBox,
-    QPushButton,
-    QTabWidget,
-    QVBoxLayout,
-    QWidget,
+    QApplication, QComboBox, QHBoxLayout, QLabel, QListWidget, QMainWindow,
+    QMessageBox, QPushButton, QTabWidget, QVBoxLayout, QWidget, QListWidgetItem
 )
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtGui import QPixmap
-
-# Matplotlib for plotting temperature trends
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-
 import folium
+from datetime import datetime   
+
+"""
+Modern Weather App UI using PyQt5, Matplotlib, and Folium.
+Clean code, well-commented, and optimized for readability and maintainability.
+"""
 
 # =================== CONFIGURATION ===================
-# Predefined locations for quick testing
 LOCATIONS: Dict[str, Dict[str, float]] = {
     "Naucalpan": {"lat": 19.478484, "lon": -99.23503},
     "Coacalco": {"lat": 19.633914, "lon": -99.099352},
@@ -42,8 +31,9 @@ API_URL = "https://api.openweathermap.org/data/3.0/onecall"
 
 @dataclass
 class WeatherPoint:
-    """Simple container for weather details of a single point in time."""
-
+    """
+    Container for weather details at a single point in time.
+    """
     dt_txt: str
     temp: float
     feels_like: float
@@ -58,20 +48,20 @@ class WeatherPoint:
 
 
 class WeatherWindow(QMainWindow):
-    """Main application window displaying the modern weather UI."""
-
+    """
+    Main application window for the modern weather UI.
+    """
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Clima Moderno")
         self.resize(1000, 700)
 
-        # ======== Widgets =========
+        # --- Top bar: location selection and fetch button ---
         top_bar = QHBoxLayout()
         self.location_combo = QComboBox()
         self.location_combo.addItems(LOCATIONS.keys())
         self.fetch_button = QPushButton("Obtener clima")
         self.fetch_button.clicked.connect(self.fetch_weather)
-        # Top bar label
         location_label = QLabel("Ubicación:")
         location_label.setStyleSheet("color: #2C3E50; font-weight: bold;")
         self.location_combo.setStyleSheet("QComboBox { background: #A1C4FD; color: #2C3E50; border-radius: 6px; padding: 4px; font-size: 14px; }")
@@ -81,7 +71,7 @@ class WeatherWindow(QMainWindow):
         top_bar.addWidget(self.fetch_button)
         top_bar.addStretch()
 
-        # Sidebar with tabs for hours and days
+            # --- Sidebar: tabs for hourly and daily ---
         self.tabs = QTabWidget()
         self.hourly_list = QListWidget()
         self.daily_list = QListWidget()
@@ -89,45 +79,9 @@ class WeatherWindow(QMainWindow):
         self.daily_list.currentRowChanged.connect(self.show_daily_details)
         self.tabs.addTab(self.hourly_list, "Horas")
         self.tabs.addTab(self.daily_list, "Días")
-        # Estilo visual moderno y ancho para los botones de las pestañas
-        self.tabs.setStyleSheet('''
-            QTabBar::tab {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #A1C4FD, stop:1 #C2E9FB);
-                color: #2C3E50;
-                border-radius: 16px;
-                padding: 18px 0px;
-                margin: 8px 0px 8px 0px;
-                font-size: 20px;
-                font-weight: bold;
-                min-width: 0px;
-                min-height: 48px;
-                width: 100%;
-                border: 2px solid #D1D9E6;
-                box-shadow: 0 2px 8px #A1C4FD33;
-                letter-spacing: 1px;
-                transition: background 0.3s;
-            }
-            QTabBar::tab:selected {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #4A90E2, stop:1 #A1C4FD);
-                color: #F5F9FF;
-                border: 2px solid #4A90E2;
-                box-shadow: 0 4px 16px #4A90E255;
-            }
-            QTabBar::tab:hover {
-                background: #D1D9E6;
-                color: #2C3E50;
-            }
-            QTabBar::tab {
-                width: 100%;
-            }
-            QTabWidget::pane {
-                border: 1px solid #D1D9E6;
-                border-radius: 18px;
-                margin: 0;
-            }
-        ''')
         self.tabs.setMaximumWidth(220)
-        # Estilo moderno para el sidebar de horas y días, con scrollbar oculto y visible solo en hover
+
+        # Modern style for sidebar lists
         list_style = '''
             QListWidget {
                 background: #A1C4FD;
@@ -147,14 +101,12 @@ class WeatherWindow(QMainWindow):
                 font-weight: bold;
                 border: 2px solid #D1D9E6;
             }
-            /* Scrollbar oculto por defecto */
             QListWidget QScrollBar:vertical {
                 width: 10px;
                 background: transparent;
                 margin: 2px 0 2px 0;
                 border-radius: 6px;
                 opacity: 0;
-
             }
             QListWidget:hover QScrollBar:vertical {
                 opacity: 1;
@@ -184,42 +136,22 @@ class WeatherWindow(QMainWindow):
         self.hourly_list.setStyleSheet(list_style)
         self.daily_list.setStyleSheet(list_style)
 
-        # Style for tab bar
-        self.tabs.setStyleSheet('''
-            QTabBar::tab {
-                background: #F5F9FF;
-                color: #2C3E50;
-                border-radius: 8px;
-                padding: 8px 16px;
-                margin: 2px;
-                font-weight: bold;
-            }
-            QTabBar::tab:selected {
-                background: #A1C4FD;
-                color: #2C3E50;
-            }
-            QTabWidget::pane {
-                border: 1px solid #D1D9E6;
-                border-radius: 10px;
-            }
-        ''')
-
-        # Map using folium displayed in a QWebEngineView
+        # --- Map using folium displayed in a QWebEngineView ---
         self.map_view = QWebEngineView()
 
-        # Area for weather details and icon
+        # --- Area for weather details and icon ---
         self.icon_label = QLabel()
         self.icon_label.setAlignment(Qt.AlignCenter)
         self.details_label = QLabel("Selecciona una hora o día")
-        self.details_label.setAlignment(Qt.AlignTop)
+        self.details_label.setAlignment(Qt.AlignCenter)
         self.details_label.setWordWrap(True)
-        self.details_label.setStyleSheet("font-size: 16px; color: #2C3E50; background: #F5F9FF; border-radius: 10px; padding: 0 12px 12px 12px;")
+        self.details_label.setStyleSheet("font-size: 16px; color: #2C3E50; background: #F5F9FF; border-radius: 10px; padding: 0 12px 12px 12px; text-align: center;")
 
-        # Matplotlib canvas for temperature trends
+        # --- Matplotlib canvas for temperature trends ---
         self.figure = Figure(figsize=(5, 3))
         self.canvas = FigureCanvas(self.figure)
-    # El estilo de canvas se aplica en apply_palette
 
+        # --- Layouts ---
         right_layout = QVBoxLayout()
         right_layout.addWidget(self.map_view, stretch=3)
         right_layout.addWidget(self.icon_label, stretch=1)
@@ -239,15 +171,17 @@ class WeatherWindow(QMainWindow):
         container.setStyleSheet("background: #F5F9FF;")
         self.setCentralWidget(container)
 
-        # Store weather data
-        self.hourly_data: List[WeatherPoint] = []
-        self.daily_data: List[WeatherPoint] = []
+        # --- Store weather data ---
+        self.hourly_data = []
+        self.daily_data = []
 
     # -------------------------------------------------
     # Networking
     # -------------------------------------------------
     def fetch_weather(self):
-        """Fetch weather data from the API and update UI lists."""
+        """
+        Fetch weather data from the API and update UI lists.
+        """
         location = self.location_combo.currentText()
         coords = LOCATIONS.get(location)
         params = {
@@ -256,7 +190,7 @@ class WeatherWindow(QMainWindow):
             "appid": API_KEY,
             "units": "metric",
             "exclude": "minutely",
-            "lang": "es",
+            "lang": "en",
         }
         try:
             response = requests.get(API_URL, params=params, timeout=10)
@@ -266,16 +200,13 @@ class WeatherWindow(QMainWindow):
             return
 
         data = response.json()
-        self.hourly_data = []
-        self.daily_data = []
+        self.hourly_data.clear()
+        self.daily_data.clear()
         self.hourly_list.clear()
         self.daily_list.clear()
 
-        # --- fill hourly data ---
-        from datetime import datetime
-        today = datetime.now().date()
+        # --- Fill hourly data ---
         last_day = None
-        from PyQt5.QtWidgets import QListWidgetItem
         weather_emojis = {
             "01d": "☀️", "01n": "🌙",
             "02d": "🌤️", "02n": "🌤️",
@@ -287,6 +218,8 @@ class WeatherWindow(QMainWindow):
             "13d": "❄️", "13n": "❄️",
             "50d": "🌫️", "50n": "🌫️",
         }
+        days = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+        meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
         for hour in data.get("hourly", [])[:24]:
             dt_obj = datetime.fromtimestamp(hour.get("dt"))
             dt_txt = self.unix_to_hour(hour.get("dt"))
@@ -307,9 +240,7 @@ class WeatherWindow(QMainWindow):
             )
             # Insertar un label de día si cambia el día
             if last_day != dt_obj.date():
-                dias = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
-                meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
-                weekday = dias[dt_obj.weekday()]
+                weekday = days[dt_obj.weekday()]
                 day = dt_obj.day
                 month = meses[dt_obj.month - 1]
                 day_str = f"{weekday.capitalize()}, {day:02d} {month}"
@@ -325,25 +256,11 @@ class WeatherWindow(QMainWindow):
             item_text = f"{dt_txt} | {wp.temp:.1f}°C | {emoji} "
             self.hourly_list.addItem(item_text)
 
-        # --- fill daily data ---
-        # Diccionario de emojis por código de icono de OpenWeather
-        weather_emojis = {
-            "01d": "☀️", "01n": "🌙",
-            "02d": "🌤️", "02n": "🌤️",
-            "03d": "☁️", "03n": "☁️",
-            "04d": "☁️", "04n": "☁️",
-            "09d": "🌧️", "09n": "🌧️",
-            "10d": "🌦️", "10n": "🌦️",
-            "11d": "⛈️", "11n": "⛈️",
-            "13d": "❄️", "13n": "❄️",
-            "50d": "🌫️", "50n": "🌫️",
-        }
-        dias = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"]
-        meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
-        from datetime import datetime
+        # --- Fill daily data ---
+        days_shorts = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"]
         for day in data.get("daily", [])[:7]:
             dt_obj = datetime.fromtimestamp(day.get("dt"))
-            weekday = dias[dt_obj.weekday()]
+            weekday = days_shorts[dt_obj.weekday()]
             day_num = dt_obj.day
             month = meses[dt_obj.month - 1]
             dt_txt = f"{weekday.capitalize()}, {day_num:02d} {month}"
@@ -369,7 +286,7 @@ class WeatherWindow(QMainWindow):
 
         # Display map and temperature trend for hourly by default
         self.update_map(coords["lat"], coords["lon"], location)
-        self.plot_temperatures([h.temp for h in self.hourly_data], "Próximas horas")
+        self.plot_temperatures([h.temp for h in self.hourly_data], "Next hours")
         self.details_label.setText("Selecciona una hora o día para ver los detalles")
 
     # -------------------------------------------------
@@ -377,31 +294,28 @@ class WeatherWindow(QMainWindow):
     # -------------------------------------------------
     @staticmethod
     def unix_to_hour(ts: int) -> str:
-        from datetime import datetime
+        """
+        Convert unix timestamp to 12-hour format string.
+        """
         dt = datetime.fromtimestamp(ts)
-        hour_12 = dt.strftime("%I:%M %p")
-        # Quitar cero inicial
-        if hour_12[0] == "0":
-            hour_12 = hour_12[1:]
+        hour_12 = dt.strftime("%I:%M %p").lstrip("0")
         return hour_12
 
-    @staticmethod
-    def unix_to_date(ts: int) -> str:
-        from datetime import datetime
-
-        return datetime.fromtimestamp(ts).strftime("%d %b")
-
     def update_map(self, lat: float, lon: float, location: str):
-        """Render an interactive map using folium and show it in the view."""
+        """
+        Render an interactive map using folium and show it in the view.
+        """
         fmap = folium.Map(location=[lat, lon], zoom_start=10)
         folium.Marker([lat, lon], tooltip=location).add_to(fmap)
-        # Render map to HTML and feed into QWebEngineView
         data = io.BytesIO()
         fmap.save(data, close_file=False)
         html = data.getvalue().decode()
         self.map_view.setHtml(html)
 
     def show_hourly_details(self, index: int):
+        """
+        Show details for the selected hour.
+        """
         if index < 0 or index >= len(self.hourly_data):
             return
         wp = self.hourly_data[index]
@@ -409,6 +323,9 @@ class WeatherWindow(QMainWindow):
         self.plot_temperatures([h.temp for h in self.hourly_data], "Próximas horas")
 
     def show_daily_details(self, index: int):
+        """
+        Show details for the selected day.
+        """
         if index < 0 or index >= len(self.daily_data):
             return
         wp = self.daily_data[index]
@@ -416,9 +333,9 @@ class WeatherWindow(QMainWindow):
         self.plot_temperatures([d.temp for d in self.daily_data], "Próximos días")
 
     def update_details(self, wp: WeatherPoint):
-        """Update detail area with information from a WeatherPoint."""
-        # Icono grande a la izquierda, datos a la derecha
-            # Emoji por icono
+        """
+        Update detail area with information from a WeatherPoint.
+        """
         weather_emojis = {
             "01d": "☀️", "01n": "🌙",
             "02d": "🌤️", "02n": "🌤️",
@@ -432,37 +349,35 @@ class WeatherWindow(QMainWindow):
         }
         emoji = weather_emojis.get(wp.icon, "❓")
 
-        # Obtener datos extendidos si existen
+        # Extended data if available
         pop = getattr(wp, 'pop', None)
         uvi = getattr(wp, 'uvi', None)
         dew_point = getattr(wp, 'dew_point', None)
         clouds = getattr(wp, 'clouds', None)
 
-        # Mensaje de recomendación final
-        recomendacion = []
-        # Lluvia SIEMPRE, con nivel de probabilidad
+        # Recomendaciones basadas en el clima
+        recommendations = []
         if pop is not None:
             if pop >= 0.8:
-                recomendacion.append("☔ Muy alta probabilidad de lluvia. Lleva paraguas y ropa impermeable.")
+                recommendations.append("☔ Muy alta probabilidad de lluvia. Lleva paraguas y ropa impermeable.")
             elif pop >= 0.5:
-                recomendacion.append("🌦️ Probabilidad media de lluvia. Considera llevar paraguas.")
+                recommendations.append("🌦️ Probabilidad media de lluvia. Considera llevar paraguas.")
             elif pop >= 0.2:
-                recomendacion.append("�️ Baja probabilidad de lluvia. Probablemente no necesites paraguas.")
+                recommendations.append("🌦️ Baja probabilidad de lluvia. Probablemente no necesites paraguas.")
             else:
-                recomendacion.append("🌤️ Muy baja probabilidad de lluvia. Disfruta tu día.")
+                recommendations.append("🌤️ Muy baja probabilidad de lluvia. Disfruta tu día.")
         else:
-            recomendacion.append("🌤️ No se espera lluvia, disfruta tu día.")
-        # Otras recomendaciones
+            recommendations.append("🌤️ No se espera lluvia. Disfruta tu día.")
         if uvi is not None and uvi >= 6:
-            recomendacion.append("🧴 Usa protector solar, el índice UV es alto.")
+            recommendations.append("🧴 Usa protector solar, el índice UV es alto.")
         if wp.temp >= 30:
-            recomendacion.append("🥵 Hace calor, mantente hidratado.")
+            recommendations.append("🥵 Hace calor, mantente hidratado.")
         if wp.temp <= 5:
-            recomendacion.append("🧥 Hace frío, abrígate bien.")
+            recommendations.append("🧥 Hace frío, abrígate bien.")
         if wp.humidity >= 80:
-            recomendacion.append("💧 Humedad alta, puede sentirse bochornoso.")
-        if len(recomendacion) == 1:
-            recomendacion.append("✅ El clima es agradable, ¡disfruta tu día!")
+            recommendations.append("💧 Humedad alta, puede sentirse bochornoso.")
+        if len(recommendations) == 1:
+            recommendations.append("✅ El clima es agradable, ¡disfruta tu día!")
 
         details_html = f'''
         <div style="display: flex; align-items: center; gap: 18px;">
@@ -481,7 +396,7 @@ class WeatherWindow(QMainWindow):
                     ☁️ Nubes: {clouds if clouds is not None else '-'}% &nbsp; | &nbsp; 🧊 Punto de rocío: {dew_point if dew_point is not None else '-'}°C &nbsp; | &nbsp; ☀️ UV: {uvi if uvi is not None else '-'}
                 </div>
                 <div style="margin-top: 10px; font-size: 1.1em; color: #4A90E2; font-weight: bold;">
-                    {'<br>'.join(recomendacion)}
+                    {'<br>'.join(recommendations)}
                 </div>
             </div>
         </div>
@@ -490,7 +405,9 @@ class WeatherWindow(QMainWindow):
         self.icon_label.clear()
 
     def load_icon(self, code: str):
-        """Fetch weather icon from OpenWeather and display it."""
+        """
+        Fetch weather icon from OpenWeather and display it.
+        """
         try:
             url = f"https://openweathermap.org/img/wn/{code}@2x.png"
             resp = requests.get(url, timeout=5)
@@ -501,57 +418,60 @@ class WeatherWindow(QMainWindow):
             self.icon_label.clear()
 
     def plot_temperatures(self, temps: List[float], title: str):
-        """Plot temperature trend with explicit X axis and adaptive label density."""
+        """
+        Plot temperature trend with explicit X axis and adaptive label density.
+        """
         import numpy as np
         self.figure.clear()
         ax = self.figure.add_subplot(111)
         ax.set_facecolor("#F5F9FF")
         self.figure.set_facecolor("#F5F9FF")
 
-        # Determinar etiquetas X según el tipo de datos
-        if title.startswith("Próximas horas") and hasattr(self, "hourly_data") and len(self.hourly_data) == len(temps):
+        # Determine X labels based on data type
+        if title.startswith("Next hours") and hasattr(self, "hourly_data") and len(self.hourly_data) == len(temps):
             xlabels = [h.dt_txt for h in self.hourly_data]
-        elif title.startswith("Próximos días") and hasattr(self, "daily_data") and len(self.daily_data) == len(temps):
+        elif title.startswith("Next days") and hasattr(self, "daily_data") and len(self.daily_data) == len(temps):
             xlabels = [d.dt_txt for d in self.daily_data]
         else:
             xlabels = [str(i+1) for i in range(len(temps))]
 
         x = np.arange(len(temps))
         # Main line
-        line, = ax.plot(x, temps, color="#4A90E2", marker="o", markerfacecolor="#A1C4FD", markeredgecolor="#2C3E50", linewidth=2, zorder=3)
-        # Sombreado bajo la curva
+        ax.plot(x, temps, color="#4A90E2", marker="o", markerfacecolor="#A1C4FD", markeredgecolor="#2C3E50", linewidth=2, zorder=3)
+        # Shaded area under the curve
         ax.fill_between(x, temps, min(temps)-2, color="#A1C4FD", alpha=0.25, zorder=2)
-        # Etiquetas de valores (solo si hay pocos puntos)
+        # Value labels (only if few points)
         if len(temps) <= 12:
             for i, temp in enumerate(temps):
                 ax.text(i, temp+0.5, f"{temp:.1f}°", ha="center", va="bottom", fontsize=10, color="#2C3E50", fontweight="bold", zorder=4)
 
-        # Mostrar solo algunas etiquetas X si hay muchas
+        # Show only some X labels if there are many
         max_labels = 10 if len(temps) > 10 else len(temps)
         step = max(1, len(temps) // max_labels)
         shown_labels = [label if (i % step == 0 or i == len(temps)-1) else "" for i, label in enumerate(xlabels)]
         ax.set_xticks(x)
         ax.set_xticklabels(shown_labels, rotation=35, ha="right", fontsize=9)
 
-        # Título y ejes
+        # Title and axes
         ax.set_title(title, color="#2C3E50", fontsize=15, fontweight="bold", pad=15)
         ax.set_ylabel("Temperatura (°C)", color="#2C3E50", fontsize=12)
         ax.set_xlabel("Hora" if title.startswith("Próximas horas") else ("Día" if title.startswith("Próximos días") else "Tiempo"), color="#2C3E50", fontsize=12)
         ax.tick_params(axis='x', colors="#2C3E50", labelsize=10)
         ax.tick_params(axis='y', colors="#2C3E50", labelsize=10)
-        # Fondo y bordes
+        # Background and borders
         ax.grid(True, alpha=0.25, color="#B0C4DE", linestyle='--', zorder=1)
         for spine in ax.spines.values():
             spine.set_color("#B0C4DE")
-        # Quitar el marco superior y derecho
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
-        # Ajustar márgenes
         self.figure.tight_layout(pad=2.0)
         self.canvas.draw()
 
 
 def main():
+    """
+    Entry point for the application.
+    """
     app = QApplication(sys.argv)
     win = WeatherWindow()
     win.show()
