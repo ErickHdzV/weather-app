@@ -256,7 +256,8 @@ def main() -> None:
     if full_body == "<html><body></body></html>":
         print("\n❌ No se pudo generar ningún informe de clima.")
         return
-    send_email(subject="Informe del clima", body=full_body, to="ulmo.closable569@passinbox.com")
+    print(full_body)  # Print the full body for debugging
+    # send_email(subject="Informe del clima", body=full_body, to="ulmo.closable569@passinbox.com")
 
 if __name__ == "__main__":
     main()
