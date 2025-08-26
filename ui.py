@@ -1,17 +1,24 @@
+# OS
 import sys
 import io
-from dataclasses import dataclass
-from typing import Dict, List
-import requests
+
+# PyQT5 
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QApplication, QComboBox, QHBoxLayout, QLabel, QListWidget, QMainWindow,
     QMessageBox, QPushButton, QTabWidget, QVBoxLayout, QWidget, QListWidgetItem
 )
 from PyQt5.QtWebEngineWidgets import QWebEngineView
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtGui import QPixmap, QIcon
+from typing import Dict, List
+
+# matplotlib
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+
+# Others
+from dataclasses import dataclass
+import requests
 import folium
 from datetime import datetime   
 
@@ -55,6 +62,8 @@ class WeatherWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Clima Moderno")
         self.resize(1000, 700)
+        # Set app icon
+        self.setWindowIcon(QIcon("assets/weather_app_icon.ico"))
 
         # --- Top bar: location selection and fetch button ---
         top_bar = QHBoxLayout()
