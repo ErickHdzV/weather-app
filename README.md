@@ -44,7 +44,7 @@ A modern weather application built with Python and PyQt5. This app allows you to
 
    ```txt
    OPENWEATHER_API_KEY=your_openweather_api_key
-   API_URL=https://api.openweathermap.org/data/2.5/onecall
+   API_URL=api_url_from_openweathermap
    EMAIL_MAP=your_email@example.com
    ```
 
@@ -53,7 +53,7 @@ A modern weather application built with Python and PyQt5. This app allows you to
 Run the application with:
 
 ```bash
-python ui.py
+python main.py
 ```
 
 ## Requirements
