@@ -1,0 +1,6 @@
+PyQt5>=5.15
+PyQtWebEngine>=5.15
+requests>=2.25
+python-dotenv>=0.19
+folium>=0.12
+matplotlib>=3.3
